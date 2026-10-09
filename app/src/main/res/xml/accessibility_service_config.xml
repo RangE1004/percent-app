@@ -4,5 +4,4 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
-    android:description="퍼센트(%) 맞춤 할인 혜택을 위해 쇼핑몰 화면의 상품명과 가격을 인식합니다."
     android:notificationTimeout="100" />
