@@ -19,8 +19,10 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Gradle 빌드 환경 자동 구성
+    - name: Gradle 8.4 설치 및 설정
       uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
 
     - name: APK 빌드 실행
       run: gradle assembleDebug --stacktrace
