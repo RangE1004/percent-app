@@ -3,8 +3,10 @@
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- 접근성 권한 추가 -->
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+    
+    <!-- AI 서버 통신을 위한 인터넷 권한 (필수 추가!) -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -14,21 +16,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".OverlayService"
-            android:enabled="true"
-            android:exported="false" />
+        <service android:name=".OverlayService" android:enabled="true" android:exported="false" />
 
-        <!-- 화면 읽기(접근성) 서비스 등록 -->
         <service
             android:name=".ScreenReaderService"
             android:exported="true"
@@ -40,6 +36,5 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
-
     </application>
 </manifest>
