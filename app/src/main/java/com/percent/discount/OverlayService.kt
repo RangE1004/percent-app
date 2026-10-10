@@ -200,8 +200,8 @@ class OverlayService : Service() {
             val safeScreenText = rawScreenText.replace("\"", "\\\"")
                 .replace("\n", " ").take(1500)
 
-            // 확인해주신 정확한 버셀 주소 적용 완료!
-            val url = URL("https://discount-scouter.vercel.app/api/chat")
+            // ⚠️ 정확한 analyze 주소로 수정 완료된 부분입니다!
+            val url = URL("https://discount-scouter.vercel.app/api/analyze")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
