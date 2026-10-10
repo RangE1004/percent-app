@@ -7,6 +7,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.widget.*
@@ -24,9 +26,27 @@ import kotlin.concurrent.thread
 class MainActivity : AppCompatActivity() {
 
     private val CURRENT_VERSION = "v1.2.0"
+    // 💡 스플래시 로딩 중에 권한 팝업이 뜨는 것을 막기 위한 안전장치
+    private var isSplashFinished = false 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 1. 방금 올리신 로딩 이미지(my_layout.png)가 담긴 스플래시 화면을 가장 먼저 띄웁니다.
+        setContentView(R.layout.activity_splash)
+
+        // 2. 1.5초(1500ms) 대기 후 메인 화면을 그리고 넘겨줍니다.
+        Handler(Looper.getMainLooper()).postDelayed({
+            showMainScreen() // 오전에 짠 기존 프로필 설정 화면을 그립니다.
+            isSplashFinished = true
+            
+            checkPermissions() // 화면이 완전히 넘어간 뒤에 권한 검사를 시작합니다.
+            checkForUpdate()   // 업데이트 확인
+        }, 1500)
+    }
+
+    // 💡 오전에 작성하셨던 메인 화면 그리는 코드를 하나의 함수로 깔끔하게 묶었습니다.
+    private fun showMainScreen() {
         val pref = getSharedPreferences("PercentProfile", Context.MODE_PRIVATE)
 
         val scrollView = ScrollView(this)
@@ -109,14 +129,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
         layout.addView(startBtn)
-        setContentView(scrollView)
-
-        checkForUpdate()
+        
+        // 메인 화면으로 전환!
+        setContentView(scrollView) 
     }
 
     override fun onResume() {
         super.onResume()
-        checkPermissions()
+        // 스플래시 화면이 끝나고 메인 화면이 떴을 때만 권한을 물어보게 막아둡니다.
+        if (isSplashFinished) {
+            checkPermissions()
+        }
     }
 
     private fun createLabel(text: String): TextView {
@@ -125,7 +148,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 💡 프로급 권한 안내 디자인 (커스텀 레이아웃)
     private fun showCustomPermissionDialog(iconText: String, titleText: String, messageText: String, action: String) {
         val dialogView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -185,7 +207,6 @@ class MainActivity : AppCompatActivity() {
         return prefString?.contains(packageName) == true
     }
 
-    // 💡 찌꺼기 없는 자체 다운로드 및 자동 설치 로직
     private fun checkForUpdate() {
         thread {
             try {
@@ -231,11 +252,9 @@ class MainActivity : AppCompatActivity() {
                 val conn = url.openConnection() as HttpURLConnection
                 conn.connect()
 
-                // 앱 내부 임시(Cache) 폴더 사용
                 val updateDir = File(cacheDir, "updates")
                 if (!updateDir.exists()) updateDir.mkdirs()
 
-                // 💡 핵심: 기존 찌꺼기 파일 완벽하게 삭제 (용량 절약)
                 updateDir.listFiles()?.forEach { it.delete() }
 
                 val apkFile = File(updateDir, "update.apk")
@@ -249,7 +268,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 outputStream.close(); inputStream.close()
 
-                // 자동 설치 화면 띄우기
                 val intent = Intent(Intent.ACTION_VIEW)
                 val apkUri = FileProvider.getUriForFile(
                     this,
