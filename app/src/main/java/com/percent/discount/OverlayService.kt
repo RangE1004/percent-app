@@ -270,11 +270,8 @@ class OverlayService : Service() {
         card: String, mem: String, tel: String, stat: String, resultView: TextView
     ) {
         try {
-            // 💡 여기서 새롭게 만든 하이브리드 스냅샷 함수를 호출합니다.
             val rawScreenText = ScreenReaderService.getHybridSnapshot()
-            
-            // 특수기호 오류를 막기 위해 따옴표만 처리 (길이 제한은 이미 Hybrid 내부에서 1000자로 완료됨)
-            val safeScreenText = rawScreenText.replace("\"", "\\\"")
+            val safeScreenText = rawScreenText.replace("\"", "\\\"").take(1000)
             val pText = "카드($card), 멤버십($mem), 통신사($tel), 신분($stat)"
 
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
@@ -308,22 +305,34 @@ class OverlayService : Service() {
                     val parts = content.getJSONArray("parts")
                     val textResult = parts.getJSONObject(0).getString("text")
 
-                    val innerJson = JSONObject(textResult)
-                    val tipsArray = innerJson.optJSONArray("tips")
-                    val caution = innerJson.optString("caution", "")
+                    // 💡 강력한 해독기: AI가 앞뒤에 무슨 텍스트를 붙이든 { } 안의 핵심 정보만 쏙 뽑아냄
+                    val startIndex = textResult.indexOf('{')
+                    val endIndex = textResult.lastIndexOf('}')
 
-                    val sb = StringBuilder()
-                    if (tipsArray != null) {
-                        for (i in 0 until tipsArray.length()) {
-                            sb.append("✅ ").append(tipsArray.getString(i)).append("\n\n")
+                    if (startIndex != -1 && endIndex != -1 && startIndex <= endIndex) {
+                        val cleanJsonStr = textResult.substring(startIndex, endIndex + 1)
+                        val innerJson = JSONObject(cleanJsonStr)
+                        
+                        val tipsArray = innerJson.optJSONArray("tips")
+                        val caution = innerJson.optString("caution", "")
+
+                        val sb = StringBuilder()
+                        if (tipsArray != null) {
+                            for (i in 0 until tipsArray.length()) {
+                                sb.append("✅ ").append(tipsArray.getString(i)).append("\n\n")
+                            }
                         }
-                    }
-                    if (caution.isNotEmpty()) {
-                        sb.append("⚠️ ").append(caution)
-                    }
+                        if (caution.isNotEmpty()) {
+                            sb.append("⚠️ ").append(caution)
+                        }
 
-                    Handler(Looper.getMainLooper()).post {
-                        resultView.text = sb.toString().trim()
+                        Handler(Looper.getMainLooper()).post {
+                            resultView.text = sb.toString().trim()
+                        }
+                    } else {
+                        Handler(Looper.getMainLooper()).post {
+                            resultView.text = "혜택 정보를 찾을 수 없습니다.\n($textResult)"
+                        }
                     }
                 } catch (e: Exception) {
                     Handler(Looper.getMainLooper()).post {
