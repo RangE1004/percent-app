@@ -23,9 +23,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class OverlayService : Service() {
 
@@ -72,18 +69,17 @@ class OverlayService : Service() {
             y = 300
         }
 
-        // 💡 하단 [✖] 종료 영역 만들기 (평소엔 숨겨둠)
         closeAreaView = TextView(this).apply {
             text = "✖"
             textSize = 28f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xFFFF4444.toInt()) // 빨간색
+                setColor(0xFFFF4444.toInt())
+                cornerRadius = 90f 
             }
             visibility = View.GONE
-            alpha = 0.5f // 반투명
+            alpha = 0.5f
         }
         val closeParams = WindowManager.LayoutParams(
             180, 180, layoutType,
@@ -91,7 +87,7 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = 150 // 화면 맨 아래에서 살짝 띄움
+            y = 150 
         }
         windowManager.addView(closeAreaView, closeParams)
 
@@ -118,18 +114,16 @@ class OverlayService : Service() {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
 
-                        // 💡 렉/순간이동 완벽 해결: 15 이상 밀면 '드래그 모드' 시작
                         if (!isMove && (Math.abs(dx) > 15 || Math.abs(dy) > 15)) {
                             isMove = true
-                            closeAreaView?.visibility = View.VISIBLE // X 버튼 나타남
+                            closeAreaView?.visibility = View.VISIBLE
                         }
 
                         if (isMove) {
                             params.x = initialX + dx
                             params.y = initialY + dy
-                            windowManager.updateViewLayout(button, params) // 부드럽게 실시간 이동
+                            windowManager.updateViewLayout(button, params)
 
-                            // X 버튼 근처(화면 맨 아래)로 가면 X 버튼이 커지고 선명해짐 (자석 느낌)
                             if (event.rawY > screenHeight - 400) {
                                 closeAreaView?.scaleX = 1.3f
                                 closeAreaView?.scaleY = 1.3f
@@ -144,14 +138,12 @@ class OverlayService : Service() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (isMove) {
-                            closeAreaView?.visibility = View.GONE // 손 떼면 X 숨김
-                            
-                            // 💡 X 버튼 근처에서 손을 뗐다면 위젯 종료!
+                            closeAreaView?.visibility = View.GONE
                             if (event.rawY > screenHeight - 400) {
-                                stopSelf() // 서비스(위젯) 완전 종료
+                                stopSelf()
                             }
                         } else {
-                            toggleBenefitPopup() // 드래그 안 했으면 팝업 열기
+                            toggleBenefitPopup()
                         }
                         return true
                     }
@@ -191,12 +183,53 @@ class OverlayService : Service() {
             }
         }
 
+        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val popupParams = WindowManager.LayoutParams(
+            800, WindowManager.LayoutParams.WRAP_CONTENT,
+            layoutType, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = (resources.displayMetrics.widthPixels - 800) / 2
+            y = resources.displayMetrics.heightPixels - 1200
+        }
+
         val title = TextView(this).apply {
-            text = "✨ 퍼센트 AI 분석 결과"
+            text = "✨ 퍼센트 AI 분석 결과 (이동)"
             textSize = 17f
             paint.isFakeBoldText = true
             setTextColor(0xFF1B263B.toInt())
             setPadding(0, 0, 0, 20)
+            
+            setOnTouchListener(object : View.OnTouchListener {
+                private var initialX = 0
+                private var initialY = 0
+                private var initialTouchX = 0f
+                private var initialTouchY = 0f
+
+                override fun onTouch(v: View?, event: MotionEvent): Boolean {
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            initialX = popupParams.x
+                            initialY = popupParams.y
+                            initialTouchX = event.rawX
+                            initialTouchY = event.rawY
+                            return true
+                        }
+                        MotionEvent.ACTION_MOVE -> {
+                            popupParams.x = initialX + (event.rawX - initialTouchX).toInt()
+                            popupParams.y = initialY + (event.rawY - initialTouchY).toInt()
+                            windowManager.updateViewLayout(container, popupParams)
+                            return true
+                        }
+                    }
+                    return false
+                }
+            })
         }
         container.addView(title)
 
@@ -227,16 +260,6 @@ class OverlayService : Service() {
         }
         container.addView(closeBtn)
 
-        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-        val popupParams = WindowManager.LayoutParams(
-            800, WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutType, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.CENTER }
-
         popupView = container
         windowManager.addView(popupView, popupParams)
 
@@ -247,8 +270,11 @@ class OverlayService : Service() {
         card: String, mem: String, tel: String, stat: String, resultView: TextView
     ) {
         try {
-            val rawScreenText = ScreenReaderService.currentScreenText
-            val safeScreenText = rawScreenText.replace("\"", "\\\"").replace("\n", " ").take(1500)
+            // 💡 여기서 새롭게 만든 하이브리드 스냅샷 함수를 호출합니다.
+            val rawScreenText = ScreenReaderService.getHybridSnapshot()
+            
+            // 특수기호 오류를 막기 위해 따옴표만 처리 (길이 제한은 이미 Hybrid 내부에서 1000자로 완료됨)
+            val safeScreenText = rawScreenText.replace("\"", "\\\"")
             val pText = "카드($card), 멤버십($mem), 통신사($tel), 신분($stat)"
 
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
@@ -322,7 +348,6 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // 위젯 종료 시 모든 그래픽 요소를 깨끗하게 지워줍니다.
         if (floatingView != null) windowManager.removeView(floatingView)
         if (popupView != null) windowManager.removeView(popupView)
         if (closeAreaView != null) windowManager.removeView(closeAreaView)
