@@ -23,12 +23,16 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var floatingView: View? = null
     private var popupView: View? = null
+    private var closeAreaView: TextView? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -68,6 +72,31 @@ class OverlayService : Service() {
             y = 300
         }
 
+        // 💡 하단 [✖] 종료 영역 만들기 (평소엔 숨겨둠)
+        closeAreaView = TextView(this).apply {
+            text = "✖"
+            textSize = 28f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFFFF4444.toInt()) // 빨간색
+            }
+            visibility = View.GONE
+            alpha = 0.5f // 반투명
+        }
+        val closeParams = WindowManager.LayoutParams(
+            180, 180, layoutType,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = 150 // 화면 맨 아래에서 살짝 띄움
+        }
+        windowManager.addView(closeAreaView, closeParams)
+
+        val screenHeight = resources.displayMetrics.heightPixels
+
         button.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -88,17 +117,42 @@ class OverlayService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
-                        // 터치 민감도를 40으로 둔감하게 하여 중복 터치 에러 완벽 차단
-                        if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
+
+                        // 💡 렉/순간이동 완벽 해결: 15 이상 밀면 '드래그 모드' 시작
+                        if (!isMove && (Math.abs(dx) > 15 || Math.abs(dy) > 15)) {
                             isMove = true
+                            closeAreaView?.visibility = View.VISIBLE // X 버튼 나타남
+                        }
+
+                        if (isMove) {
                             params.x = initialX + dx
                             params.y = initialY + dy
-                            windowManager.updateViewLayout(button, params)
+                            windowManager.updateViewLayout(button, params) // 부드럽게 실시간 이동
+
+                            // X 버튼 근처(화면 맨 아래)로 가면 X 버튼이 커지고 선명해짐 (자석 느낌)
+                            if (event.rawY > screenHeight - 400) {
+                                closeAreaView?.scaleX = 1.3f
+                                closeAreaView?.scaleY = 1.3f
+                                closeAreaView?.alpha = 1.0f
+                            } else {
+                                closeAreaView?.scaleX = 1.0f
+                                closeAreaView?.scaleY = 1.0f
+                                closeAreaView?.alpha = 0.5f
+                            }
                         }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!isMove) toggleBenefitPopup()
+                        if (isMove) {
+                            closeAreaView?.visibility = View.GONE // 손 떼면 X 숨김
+                            
+                            // 💡 X 버튼 근처에서 손을 뗐다면 위젯 종료!
+                            if (event.rawY > screenHeight - 400) {
+                                stopSelf() // 서비스(위젯) 완전 종료
+                            }
+                        } else {
+                            toggleBenefitPopup() // 드래그 안 했으면 팝업 열기
+                        }
                         return true
                     }
                 }
@@ -204,7 +258,6 @@ class OverlayService : Service() {
             conn.setRequestProperty("Accept", "application/json; charset=UTF-8")
             conn.doOutput = true
 
-            // 💡 수정 완료 1: 서버 코드(analyze.js)가 요구하는 정확한 포장지(sharedText, pText) 사용
             val jsonInputString = """
                 {
                     "sharedText": "$safeScreenText",
@@ -222,7 +275,6 @@ class OverlayService : Service() {
                     InputStreamReader(conn.inputStream, Charsets.UTF_8)
                 ).use { it.readText() }
 
-                // 💡 수정 완료 2: Gemini가 보내준 복잡한 JSON 데이터를 해독하여 화면에 예쁘게 출력
                 try {
                     val root = JSONObject(response)
                     val candidates = root.getJSONArray("candidates")
@@ -230,7 +282,6 @@ class OverlayService : Service() {
                     val parts = content.getJSONArray("parts")
                     val textResult = parts.getJSONObject(0).getString("text")
 
-                    // 서버가 생성한 {"tips": [...], "caution": "..."} 구조 분석
                     val innerJson = JSONObject(textResult)
                     val tipsArray = innerJson.optJSONArray("tips")
                     val caution = innerJson.optString("caution", "")
@@ -250,11 +301,10 @@ class OverlayService : Service() {
                     }
                 } catch (e: Exception) {
                     Handler(Looper.getMainLooper()).post {
-                        resultView.text = "서버 응답을 해독하지 못했습니다.\n원문: $response"
+                        resultView.text = "서버 응답 해독 실패.\n원문: $response"
                     }
                 }
             } else {
-                // 에러 발생 시 Vercel에서 구체적으로 어떤 에러를 보냈는지까지 화면에 출력
                 val errorResponse = try {
                     BufferedReader(InputStreamReader(conn.errorStream, Charsets.UTF_8)).use { it.readText() }
                 } catch (e: Exception) { "알 수 없는 에러" }
@@ -272,7 +322,9 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // 위젯 종료 시 모든 그래픽 요소를 깨끗하게 지워줍니다.
         if (floatingView != null) windowManager.removeView(floatingView)
         if (popupView != null) windowManager.removeView(popupView)
+        if (closeAreaView != null) windowManager.removeView(closeAreaView)
     }
 }
