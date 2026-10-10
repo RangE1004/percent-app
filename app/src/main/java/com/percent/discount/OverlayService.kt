@@ -18,13 +18,11 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class OverlayService : Service() {
 
@@ -90,7 +88,7 @@ class OverlayService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
-                        // 💡 민감도를 40으로 둔감하게 변경하여 광클 및 터치 오작동 완벽 차단
+                        // 터치 민감도를 40으로 둔감하게 하여 중복 터치 에러 완벽 차단
                         if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
                             isMove = true
                             params.x = initialX + dx
@@ -154,9 +152,10 @@ class OverlayService : Service() {
             )
         }
         val resultText = TextView(this).apply {
-            text = "🔎 화면 내용을 읽어 AI 서버로 전송 중입니다...\n(잠시만 기다려주세요)"
-            textSize = 14f
+            text = "🔎 혜택을 분석하고 있습니다...\n(화면 글자를 읽어 서버와 통신 중)"
+            textSize = 15f
             setTextColor(0xFF333333.toInt())
+            setLineSpacing(0f, 1.2f)
         }
         scrollView.addView(resultText)
         container.addView(scrollView)
@@ -180,14 +179,13 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
         val popupParams = WindowManager.LayoutParams(
-            750, WindowManager.LayoutParams.WRAP_CONTENT,
+            800, WindowManager.LayoutParams.WRAP_CONTENT,
             layoutType, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.CENTER }
 
         popupView = container
         windowManager.addView(popupView, popupParams)
 
-        // API 통신 백그라운드 실행
         Thread { fetchAIResult(userCard, userMem, userTel, userStat, resultText) }.start()
     }
 
@@ -195,13 +193,10 @@ class OverlayService : Service() {
         card: String, mem: String, tel: String, stat: String, resultView: TextView
     ) {
         try {
-            val todayDate = SimpleDateFormat("yyyy년 MM월 dd일", Locale.KOREAN).format(Date())
-            
             val rawScreenText = ScreenReaderService.currentScreenText
-            val safeScreenText = rawScreenText.replace("\"", "\\\"")
-                .replace("\n", " ").take(1500)
+            val safeScreenText = rawScreenText.replace("\"", "\\\"").replace("\n", " ").take(1500)
+            val pText = "카드($card), 멤버십($mem), 통신사($tel), 신분($stat)"
 
-            // 분석 API 주소 정상 적용 상태
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
@@ -209,18 +204,11 @@ class OverlayService : Service() {
             conn.setRequestProperty("Accept", "application/json; charset=UTF-8")
             conn.doOutput = true
 
+            // 💡 수정 완료 1: 서버 코드(analyze.js)가 요구하는 정확한 포장지(sharedText, pText) 사용
             val jsonInputString = """
                 {
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "당신은 쇼핑 결제 혜택 분석 AI입니다. 오늘 날짜는 ${todayDate}입니다. 반드시 최신 날짜 기준으로 확인된 사실만 거짓 없이 대답하세요. 화면 정보에서 상품명과 가격을 찾고, 사용자의 [카드, 멤버십, 통신사] 정보와 결합하여 얻을 수 있는 최종 할인 혜택만 짧고 명확하게 제시하세요. 중복된 문장을 피하세요."
-                        },
-                        {
-                            "role": "user",
-                            "content": "현재 화면 정보: $safeScreenText \n\n나의 설정: 카드($card), 멤버십($mem), 통신사($tel), 신분($stat) \n최대 할인 방법을 알려줘."
-                        }
-                    ]
+                    "sharedText": "$safeScreenText",
+                    "pText": "$pText"
                 }
             """.trimIndent()
 
@@ -233,17 +221,46 @@ class OverlayService : Service() {
                 val response = BufferedReader(
                     InputStreamReader(conn.inputStream, Charsets.UTF_8)
                 ).use { it.readText() }
-                
-                val cleanText = response.replace(Regex("0:\"|\""), "")
-                    .replace("\\n", "\n")
-                    .replace("\\\"", "\"")
 
-                Handler(Looper.getMainLooper()).post {
-                    resultView.text = cleanText
+                // 💡 수정 완료 2: Gemini가 보내준 복잡한 JSON 데이터를 해독하여 화면에 예쁘게 출력
+                try {
+                    val root = JSONObject(response)
+                    val candidates = root.getJSONArray("candidates")
+                    val content = candidates.getJSONObject(0).getJSONObject("content")
+                    val parts = content.getJSONArray("parts")
+                    val textResult = parts.getJSONObject(0).getString("text")
+
+                    // 서버가 생성한 {"tips": [...], "caution": "..."} 구조 분석
+                    val innerJson = JSONObject(textResult)
+                    val tipsArray = innerJson.optJSONArray("tips")
+                    val caution = innerJson.optString("caution", "")
+
+                    val sb = StringBuilder()
+                    if (tipsArray != null) {
+                        for (i in 0 until tipsArray.length()) {
+                            sb.append("✅ ").append(tipsArray.getString(i)).append("\n\n")
+                        }
+                    }
+                    if (caution.isNotEmpty()) {
+                        sb.append("⚠️ ").append(caution)
+                    }
+
+                    Handler(Looper.getMainLooper()).post {
+                        resultView.text = sb.toString().trim()
+                    }
+                } catch (e: Exception) {
+                    Handler(Looper.getMainLooper()).post {
+                        resultView.text = "서버 응답을 해독하지 못했습니다.\n원문: $response"
+                    }
                 }
             } else {
+                // 에러 발생 시 Vercel에서 구체적으로 어떤 에러를 보냈는지까지 화면에 출력
+                val errorResponse = try {
+                    BufferedReader(InputStreamReader(conn.errorStream, Charsets.UTF_8)).use { it.readText() }
+                } catch (e: Exception) { "알 수 없는 에러" }
+
                 Handler(Looper.getMainLooper()).post {
-                    resultView.text = "서버 오류 (코드: ${conn.responseCode})\n서버 상태를 확인해주세요."
+                    resultView.text = "통신 에러 (코드: ${conn.responseCode})\n이유: $errorResponse"
                 }
             }
         } catch (e: Exception) {
