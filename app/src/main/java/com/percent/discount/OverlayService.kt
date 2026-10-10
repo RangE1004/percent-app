@@ -90,7 +90,8 @@ class OverlayService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
-                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                        // 💡 민감도를 40으로 둔감하게 변경하여 광클 및 터치 오작동 완벽 차단
+                        if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
                             isMove = true
                             params.x = initialX + dx
                             params.y = initialY + dy
@@ -200,7 +201,7 @@ class OverlayService : Service() {
             val safeScreenText = rawScreenText.replace("\"", "\\\"")
                 .replace("\n", " ").take(1500)
 
-            // ⚠️ 정확한 analyze 주소로 수정 완료된 부분입니다!
+            // 분석 API 주소 정상 적용 상태
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
