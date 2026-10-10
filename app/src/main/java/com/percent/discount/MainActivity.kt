@@ -25,7 +25,7 @@ import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
-    private val CURRENT_VERSION = "v1.2.0"
+    private val CURRENT_VERSION = "v1.2.1"
     // 💡 스플래시 로딩 중에 권한 팝업이 뜨는 것을 막기 위한 안전장치
     private var isSplashFinished = false 
 
