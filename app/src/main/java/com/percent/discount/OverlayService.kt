@@ -46,6 +46,7 @@ class OverlayService : Service() {
             paint.isFakeBoldText = true
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
+            includeFontPadding = false
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(0xFF1B263B.toInt())
@@ -69,14 +70,16 @@ class OverlayService : Service() {
             y = 300
         }
 
+        // 💡 X 버튼 디자인 완벽 교체: 정중앙 정렬, 완벽한 원형(OVAL), 얇고 깔끔한 특수문자(✕)
         closeAreaView = TextView(this).apply {
-            text = "✖"
-            textSize = 28f
+            text = "✕"
+            textSize = 32f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
+            includeFontPadding = false // 글자 위아래 기본 여백 제거로 완벽한 중앙 정렬
             background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL // 네모가 아닌 완벽한 동그라미로 강제 지정
                 setColor(0xFFFF4444.toInt())
-                cornerRadius = 90f 
             }
             visibility = View.GONE
             alpha = 0.5f
@@ -199,7 +202,7 @@ class OverlayService : Service() {
         }
 
         val title = TextView(this).apply {
-            text = "✨ 퍼센트 AI 분석 결과 (이동)"
+            text = "✨ 할인 스카우터 결과" // 세련된 제목
             textSize = 17f
             paint.isFakeBoldText = true
             setTextColor(0xFF1B263B.toInt())
@@ -238,8 +241,10 @@ class OverlayService : Service() {
                 LinearLayout.LayoutParams.MATCH_PARENT, 600
             )
         }
+        
+        // 💡 프로 앱 느낌의 고급스러운 로딩 문구
         val resultText = TextView(this).apply {
-            text = "🔎 혜택을 분석하고 있습니다...\n(화면 글자를 읽어 서버와 통신 중)"
+            text = "최적의 할인 및 결제 혜택 조합을 계산하고 있습니다...\n잠시만 기다려주세요."
             textSize = 15f
             setTextColor(0xFF333333.toInt())
             setLineSpacing(0f, 1.2f)
@@ -271,7 +276,12 @@ class OverlayService : Service() {
     ) {
         try {
             val rawScreenText = ScreenReaderService.getHybridSnapshot()
-            val safeScreenText = rawScreenText.replace("\"", "\\\"").take(1000)
+            
+            // 💡 특수문자 JSON 통신 오류 완벽 차단 방패 (역슬래시, 따옴표 완벽 방어)
+            val safeScreenText = rawScreenText
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+            
             val pText = "카드($card), 멤버십($mem), 통신사($tel), 신분($stat)"
 
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
@@ -305,7 +315,6 @@ class OverlayService : Service() {
                     val parts = content.getJSONArray("parts")
                     val textResult = parts.getJSONObject(0).getString("text")
 
-                    // 💡 강력한 해독기: AI가 앞뒤에 무슨 텍스트를 붙이든 { } 안의 핵심 정보만 쏙 뽑아냄
                     val startIndex = textResult.indexOf('{')
                     val endIndex = textResult.lastIndexOf('}')
 
