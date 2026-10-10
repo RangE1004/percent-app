@@ -241,12 +241,12 @@ class OverlayService : Service() {
             )
         }
         
-        // 💡 가운데 정렬 설정
+        // 💡 텍스트 중앙 정렬 및 줄간격 확보
         val resultText = TextView(this).apply {
             textSize = 15f
             setTextColor(0xFF333333.toInt())
-            setLineSpacing(0f, 1.2f)
-            gravity = Gravity.CENTER // 텍스트를 한가운데로!
+            setLineSpacing(0f, 1.3f)
+            gravity = Gravity.CENTER
         }
         scrollView.addView(resultText)
         container.addView(scrollView)
@@ -267,19 +267,19 @@ class OverlayService : Service() {
         popupView = container
         windowManager.addView(popupView, popupParams)
 
-        // 💡 1초마다 바뀌는 동적 애니메이션 텍스트 로직
+        // 💡 2초마다 바뀌는 가독성 좋은 동적 애니메이션
         val loadingHandler = Handler(Looper.getMainLooper())
         val loadingMessages = arrayOf(
-            "🔎 화면 정보를 스캔하고 있습니다...",
-            "🎁 숨겨진 쿠폰과 혜택을 찾는 중...",
-            "✨ 최적의 할인 조합을 계산하고 있습니다..."
+            "🔎 화면 정보를 스캔하고 있어요\n(잠시만 기다려주세요)",
+            "🎁 숨겨진 혜택을 분석 중이에요\n(쿠폰 및 멤버십 확인)",
+            "✨ 최적의 할인 조합 계산 중...\n(거의 다 왔어요!)"
         )
         var msgIndex = 0
         val loadingRunnable = object : Runnable {
             override fun run() {
                 resultText.text = loadingMessages[msgIndex % loadingMessages.size]
                 msgIndex++
-                loadingHandler.postDelayed(this, 1000)
+                loadingHandler.postDelayed(this, 2000) // 1초 -> 2초(2000ms)로 변경
             }
         }
         loadingHandler.post(loadingRunnable) // 애니메이션 시작!
@@ -350,7 +350,7 @@ class OverlayService : Service() {
                         // 💡 통신 완료: 애니메이션 중지 후 왼쪽 정렬로 결과 표시
                         loadingHandler.removeCallbacks(loadingRunnable)
                         Handler(Looper.getMainLooper()).post {
-                            resultView.gravity = Gravity.START
+                            resultView.gravity = Gravity.START // 결과는 다시 왼쪽 정렬
                             resultView.text = sb.toString().trim()
                         }
                     } else {
