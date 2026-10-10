@@ -1,5 +1,6 @@
 package com.percent.discount
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -8,8 +9,17 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
+
+    // 💡 현재 폰에 설치된 앱의 버전 (2단계 깃허브 릴리즈에 적었던 이름과 동일하게 설정)
+    private val CURRENT_VERSION = "v1.0.0"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pref = getSharedPreferences("PercentProfile", Context.MODE_PRIVATE)
@@ -66,7 +76,6 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(statSpinner)
 
-        // 💡 버튼 1: 프로필 정보만 따로 저장하는 버튼
         val saveBtn = Button(this).apply {
             text = "프로필 정보 저장"
             setBackgroundColor(0xFF415A77.toInt())
@@ -89,7 +98,6 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(saveBtn)
 
-        // 💡 버튼 2: 위젯을 켜고 앱을 숨기는 전용 버튼
         val startBtn = Button(this).apply {
             text = "플로팅 위젯 켜기"
             setBackgroundColor(0xFF1B263B.toInt())
@@ -107,6 +115,9 @@ class MainActivity : AppCompatActivity() {
         layout.addView(startBtn)
 
         setContentView(scrollView)
+
+        // 💡 앱 켜자마자 몰래 깃허브 최신 버전 검사 시작
+        checkForUpdate()
     }
 
     private fun createLabel(text: String): TextView {
@@ -127,9 +138,51 @@ class MainActivity : AppCompatActivity() {
             val serviceIntent = Intent(this, OverlayService::class.java)
             startService(serviceIntent)
             Toast.makeText(this, "화면에 퍼센트(%) 위젯이 활성화되었습니다!", Toast.LENGTH_SHORT).show()
-            
-            // 💡 위젯이 켜진 직후 앱 화면을 바탕화면 뒤로 부드럽게 숨김
             moveTaskToBack(true)
         }
+    }
+
+    // 💡 깃허브 API를 찔러서 최신 릴리즈 태그와 비교하는 함수
+    private fun checkForUpdate() {
+        Thread {
+            try {
+                // 사용자의 깃허브 저장소 주소를 API 형식으로 입력
+                val url = URL("https://api.github.com/repos/RangeE1004/percent-app/releases/latest")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+
+                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).readText()
+                    val json = JSONObject(response)
+                    val latestVersion = json.getString("tag_name")
+
+                    // 서버의 버전(예: v1.1)이 내 버전(v1.0.0)과 다르면 팝업 띄우기
+                    if (latestVersion != CURRENT_VERSION) {
+                        val assets = json.getJSONArray("assets")
+                        if (assets.length() > 0) {
+                            val apkUrl = assets.getJSONObject(0).getString("browser_download_url")
+                            runOnUiThread { showUpdateDialog(latestVersion, apkUrl) }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }.start()
+    }
+
+    // 💡 업데이트 알림 팝업 띄우고, 확인 시 크롬 브라우저로 다운로드 바로가기 연결
+    private fun showUpdateDialog(latestVersion: String, apkUrl: String) {
+        AlertDialog.Builder(this)
+            .setTitle("✨ 새 버전 업데이트 안내")
+            .setMessage("새로운 기능이 추가된 퍼센트 앱($latestVersion)이 출시되었습니다!\n지금 바로 업데이트 하시겠습니까?")
+            .setPositiveButton("업데이트 하기") { _, _ ->
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))
+                startActivity(intent)
+            }
+            .setNegativeButton("나중에", null)
+            .setCancelable(false)
+            .show()
     }
 }
