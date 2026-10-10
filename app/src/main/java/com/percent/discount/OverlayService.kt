@@ -70,15 +70,14 @@ class OverlayService : Service() {
             y = 300
         }
 
-        // 💡 X 버튼 디자인 완벽 교체: 정중앙 정렬, 완벽한 원형(OVAL), 얇고 깔끔한 특수문자(✕)
         closeAreaView = TextView(this).apply {
             text = "✕"
             textSize = 32f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            includeFontPadding = false // 글자 위아래 기본 여백 제거로 완벽한 중앙 정렬
+            includeFontPadding = false
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL // 네모가 아닌 완벽한 동그라미로 강제 지정
+                shape = GradientDrawable.OVAL
                 setColor(0xFFFF4444.toInt())
             }
             visibility = View.GONE
@@ -202,7 +201,7 @@ class OverlayService : Service() {
         }
 
         val title = TextView(this).apply {
-            text = "✨ 할인 스카우터 결과" // 세련된 제목
+            text = "✨ 할인 스카우터 결과"
             textSize = 17f
             paint.isFakeBoldText = true
             setTextColor(0xFF1B263B.toInt())
@@ -242,12 +241,12 @@ class OverlayService : Service() {
             )
         }
         
-        // 💡 프로 앱 느낌의 고급스러운 로딩 문구
+        // 💡 가운데 정렬 설정
         val resultText = TextView(this).apply {
-            text = "최적의 할인 및 결제 혜택 조합을 계산하고 있습니다...\n잠시만 기다려주세요."
             textSize = 15f
             setTextColor(0xFF333333.toInt())
             setLineSpacing(0f, 1.2f)
+            gravity = Gravity.CENTER // 텍스트를 한가운데로!
         }
         scrollView.addView(resultText)
         container.addView(scrollView)
@@ -268,20 +267,33 @@ class OverlayService : Service() {
         popupView = container
         windowManager.addView(popupView, popupParams)
 
-        Thread { fetchAIResult(userCard, userMem, userTel, userStat, resultText) }.start()
+        // 💡 1초마다 바뀌는 동적 애니메이션 텍스트 로직
+        val loadingHandler = Handler(Looper.getMainLooper())
+        val loadingMessages = arrayOf(
+            "🔎 화면 정보를 스캔하고 있습니다...",
+            "🎁 숨겨진 쿠폰과 혜택을 찾는 중...",
+            "✨ 최적의 할인 조합을 계산하고 있습니다..."
+        )
+        var msgIndex = 0
+        val loadingRunnable = object : Runnable {
+            override fun run() {
+                resultText.text = loadingMessages[msgIndex % loadingMessages.size]
+                msgIndex++
+                loadingHandler.postDelayed(this, 1000)
+            }
+        }
+        loadingHandler.post(loadingRunnable) // 애니메이션 시작!
+
+        Thread { fetchAIResult(userCard, userMem, userTel, userStat, resultText, loadingHandler, loadingRunnable) }.start()
     }
 
     private fun fetchAIResult(
-        card: String, mem: String, tel: String, stat: String, resultView: TextView
+        card: String, mem: String, tel: String, stat: String, resultView: TextView, 
+        loadingHandler: Handler, loadingRunnable: Runnable
     ) {
         try {
             val rawScreenText = ScreenReaderService.getHybridSnapshot()
-            
-            // 💡 특수문자 JSON 통신 오류 완벽 차단 방패 (역슬래시, 따옴표 완벽 방어)
-            val safeScreenText = rawScreenText
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-            
+            val safeScreenText = rawScreenText.replace("\\", "\\\\").replace("\"", "\\\"")
             val pText = "카드($card), 멤버십($mem), 통신사($tel), 신분($stat)"
 
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
@@ -335,15 +347,20 @@ class OverlayService : Service() {
                             sb.append("⚠️ ").append(caution)
                         }
 
+                        // 💡 통신 완료: 애니메이션 중지 후 왼쪽 정렬로 결과 표시
+                        loadingHandler.removeCallbacks(loadingRunnable)
                         Handler(Looper.getMainLooper()).post {
+                            resultView.gravity = Gravity.START
                             resultView.text = sb.toString().trim()
                         }
                     } else {
+                        loadingHandler.removeCallbacks(loadingRunnable)
                         Handler(Looper.getMainLooper()).post {
                             resultView.text = "혜택 정보를 찾을 수 없습니다.\n($textResult)"
                         }
                     }
                 } catch (e: Exception) {
+                    loadingHandler.removeCallbacks(loadingRunnable)
                     Handler(Looper.getMainLooper()).post {
                         resultView.text = "서버 응답 해독 실패.\n원문: $response"
                     }
@@ -353,11 +370,13 @@ class OverlayService : Service() {
                     BufferedReader(InputStreamReader(conn.errorStream, Charsets.UTF_8)).use { it.readText() }
                 } catch (e: Exception) { "알 수 없는 에러" }
 
+                loadingHandler.removeCallbacks(loadingRunnable)
                 Handler(Looper.getMainLooper()).post {
                     resultView.text = "통신 에러 (코드: ${conn.responseCode})\n이유: $errorResponse"
                 }
             }
         } catch (e: Exception) {
+            loadingHandler.removeCallbacks(loadingRunnable)
             Handler(Looper.getMainLooper()).post {
                 resultView.text = "통신 실패: 연결 상태를 확인해주세요!\n(${e.message})"
             }
