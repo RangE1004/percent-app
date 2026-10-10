@@ -17,8 +17,8 @@ import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
-    // 💡 현재 폰에 설치된 앱의 버전 (2단계 깃허브 릴리즈에 적었던 이름과 동일하게 설정)
-    private val CURRENT_VERSION = "v1.0.0"
+    // 💡 업데이트 테스트를 위해 버전을 1.1.0으로 올렸습니다!
+    private val CURRENT_VERSION = "v1.1.0"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,7 +109,10 @@ class MainActivity : AppCompatActivity() {
             layoutParams = marginParams
             setPadding(0, 30, 0, 30)
             setOnClickListener {
-                checkOverlayPermissionAndStart()
+                val serviceIntent = Intent(this@MainActivity, OverlayService::class.java)
+                startService(serviceIntent)
+                Toast.makeText(this@MainActivity, "화면에 퍼센트(%) 위젯이 활성화되었습니다!", Toast.LENGTH_SHORT).show()
+                moveTaskToBack(true)
             }
         }
         layout.addView(startBtn)
@@ -118,6 +121,54 @@ class MainActivity : AppCompatActivity() {
 
         // 💡 앱 켜자마자 몰래 깃허브 최신 버전 검사 시작
         checkForUpdate()
+    }
+
+    // 💡 앱 화면이 다시 열릴 때마다 권한이 켜져 있는지 확인합니다.
+    override fun onResume() {
+        super.onResume()
+        checkPermissions()
+    }
+
+    // 💡 권한 자동 확인 및 설정 팝업 띄우기
+    private fun checkPermissions() {
+        // 1. 화면 글자 읽기(접근성) 권한 체크
+        if (!isAccessibilityEnabled()) {
+            showPermissionDialog(
+                "화면 스캔 권한 필요",
+                "쇼핑몰 화면의 할인 정보를 AI가 분석하려면 '접근성 권한'이 필요합니다.\n\n설정 화면이 열리면 [퍼센트]를 찾아 켜주세요.",
+                Settings.ACTION_ACCESSIBILITY_SETTINGS
+            )
+            return // 한 번에 하나씩 띄우기 위해 여기서 멈춤
+        }
+
+        // 2. 다른 앱 위에 그리기(위젯) 권한 체크
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            showPermissionDialog(
+                "위젯 표시 권한 필요",
+                "할인 위젯(%)을 쇼핑몰 화면 위에 띄우려면 권한이 필요합니다.\n\n설정에서 [퍼센트]를 허용해주세요.",
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION
+            )
+        }
+    }
+
+    private fun isAccessibilityEnabled(): Boolean {
+        val prefString = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        return prefString?.contains(packageName) == true
+    }
+
+    private fun showPermissionDialog(title: String, message: String, action: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("설정하러 가기") { _, _ ->
+                val intent = Intent(action)
+                if (action == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
+                    intent.data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun createLabel(text: String): TextView {
@@ -129,24 +180,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkOverlayPermissionAndStart() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "'다른 앱 위에 표시' 권한을 허용해 주세요.", Toast.LENGTH_LONG).show()
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-            startActivity(intent)
-        } else {
-            val serviceIntent = Intent(this, OverlayService::class.java)
-            startService(serviceIntent)
-            Toast.makeText(this, "화면에 퍼센트(%) 위젯이 활성화되었습니다!", Toast.LENGTH_SHORT).show()
-            moveTaskToBack(true)
-        }
-    }
-
-    // 💡 깃허브 API를 찔러서 최신 릴리즈 태그와 비교하는 함수
+    // 💡 깃허브 API 통신 로직
     private fun checkForUpdate() {
         Thread {
             try {
-                // 사용자의 깃허브 저장소 주소를 API 형식으로 입력
                 val url = URL("https://api.github.com/repos/RangeE1004/percent-app/releases/latest")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
@@ -157,7 +194,6 @@ class MainActivity : AppCompatActivity() {
                     val json = JSONObject(response)
                     val latestVersion = json.getString("tag_name")
 
-                    // 서버의 버전(예: v1.1)이 내 버전(v1.0.0)과 다르면 팝업 띄우기
                     if (latestVersion != CURRENT_VERSION) {
                         val assets = json.getJSONArray("assets")
                         if (assets.length() > 0) {
@@ -172,11 +208,10 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    // 💡 업데이트 알림 팝업 띄우고, 확인 시 크롬 브라우저로 다운로드 바로가기 연결
     private fun showUpdateDialog(latestVersion: String, apkUrl: String) {
         AlertDialog.Builder(this)
             .setTitle("✨ 새 버전 업데이트 안내")
-            .setMessage("새로운 기능이 추가된 퍼센트 앱($latestVersion)이 출시되었습니다!\n지금 바로 업데이트 하시겠습니까?")
+            .setMessage("권한 자동 설정 기능이 추가된 새로운 퍼센트 앱($latestVersion)이 출시되었습니다!\n지금 바로 업데이트 하시겠습니까?")
             .setPositiveButton("업데이트 하기") { _, _ ->
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))
                 startActivity(intent)
