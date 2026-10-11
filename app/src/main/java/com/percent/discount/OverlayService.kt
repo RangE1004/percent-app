@@ -357,7 +357,10 @@ class OverlayService : Service() {
                             for (i in 0 until tipsArray.length()) {
                                 sb.append("✅ ").append(tipsArray.getString(i)).append("\n\n")
                             }
+                        } else {
+                            sb.append("✅ ").append(innerJson.optString("tips", "")).append("\n\n")
                         }
+                        
                         if (caution.isNotEmpty()) {
                             sb.append("⚠️ ").append(caution)
                         }
@@ -368,9 +371,20 @@ class OverlayService : Service() {
                             resultView.text = sb.toString().trim()
                         }
                     } else {
+                        var fallbackText = textResult
+                            .replace(Regex("\\{\\s*\"tips\"\\s*:\\s*\\[?\"?"), "") 
+                            .replace(Regex("\"\\s*,\\s*\"caution\".*"), "") 
+                            .replace(Regex("[\\[\\]{}\"]"), "") 
+                            .trim()
+
+                        if (fallbackText.isEmpty()) {
+                            fallbackText = "할인 정보를 요약하는 중 텍스트가 잘렸습니다.\n($textResult)"
+                        }
+
                         loadingHandler.removeCallbacks(loadingRunnable)
                         Handler(Looper.getMainLooper()).post {
-                            resultView.text = "혜택 정보를 찾을 수 없습니다.\n($textResult)"
+                            resultView.gravity = Gravity.START
+                            resultView.text = "✅ $fallbackText"
                         }
                     }
                 } catch (e: Exception) {
