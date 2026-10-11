@@ -32,7 +32,6 @@ class OverlayService : Service() {
     private var popupView: View? = null
     private var closeAreaView: TextView? = null
     
-    // 💡 [토큰 방어 1 & 3] 연타 방지 스위치 및 통신 강제 종료를 위한 변수
     private var isFetchingAI = false
     private var activeConnection: HttpURLConnection? = null
 
@@ -170,15 +169,12 @@ class OverlayService : Service() {
             return
         }
 
-        // 💡 [토큰 방어 1] 광클(연타) 방지 로직: 통신 중이면 튕겨냄
         if (isFetchingAI) {
             Toast.makeText(this, "AI가 열심히 혜택을 계산 중이에요. 잠시만요!", Toast.LENGTH_SHORT).show()
             return
         }
 
         val pref = getSharedPreferences("PercentProfile", Context.MODE_PRIVATE)
-        
-        // 💡 [토큰 방어 4] 캐시 키 통일을 위한 알파벳 정렬(sorted) 및 다중 데이터 조합
         val sortedCard = pref.getStringSet("selected_cards", emptySet())?.sorted()?.joinToString(",") ?: "none"
         val sortedPay = pref.getStringSet("selected_pays", emptySet())?.sorted()?.joinToString(",") ?: "none"
         val sortedMem = pref.getStringSet("selected_mems", emptySet())?.sorted()?.joinToString(",") ?: "none"
@@ -259,7 +255,6 @@ class OverlayService : Service() {
             setBackgroundColor(0xFF1B263B.toInt())
             setTextColor(Color.WHITE)
             setOnClickListener {
-                // 💡 [토큰 방어 3] 닫기 버튼 누르면 진행 중이던 통신 강제 단절 (유령 요청 차단)
                 try { activeConnection?.disconnect() } catch (e: Exception) {}
                 isFetchingAI = false 
                 
@@ -290,7 +285,6 @@ class OverlayService : Service() {
         }
         loadingHandler.post(loadingRunnable) 
 
-        // 💡 락 걸고 서버 요청 시작
         isFetchingAI = true
         Thread { fetchAIResult(pText, resultText, loadingHandler, loadingRunnable) }.start()
     }
@@ -302,21 +296,20 @@ class OverlayService : Service() {
         try {
             val rawScreenText = ScreenReaderService.getHybridSnapshot()
             
-            // 💡 [토큰 방어 2] 허공 스캔 방지 (화면에 글자가 50자 이하면 차단)
             if (rawScreenText.trim().length < 50) {
                 loadingHandler.removeCallbacks(loadingRunnable)
                 Handler(Looper.getMainLooper()).post {
                     resultView.gravity = Gravity.CENTER
                     resultView.text = "현재 화면에서 결제/할인 정보를\n충분히 찾지 못했어요!\n(상품 페이지에서 다시 눌러주세요)"
                 }
-                return // 서버로 전송하지 않고 종료
+                return
             }
 
             val safeScreenText = rawScreenText.replace("\\", "\\\\").replace("\"", "\\\"")
 
-            val url = URL("https://discount-scouter.vercel.app/api/analyze")
+            val url = URL("[https://discount-scouter.vercel.app/api/analyze](https://discount-scouter.vercel.app/api/analyze)")
             val conn = url.openConnection() as HttpURLConnection
-            activeConnection = conn // 통신 객체 연결 (강제 종료를 위함)
+            activeConnection = conn
             
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
@@ -335,7 +328,9 @@ class OverlayService : Service() {
                 os.write(input, 0, input.size)
             }
 
-            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+            val responseCode = conn.responseCode
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
                 val response = BufferedReader(
                     InputStreamReader(conn.inputStream, Charsets.UTF_8)
                 ).use { it.readText() }
@@ -385,9 +380,17 @@ class OverlayService : Service() {
                     }
                 }
             } else {
+                val errorStream = conn.errorStream
+                val errorMsg = if (errorStream != null) {
+                    BufferedReader(InputStreamReader(errorStream, Charsets.UTF_8)).use { it.readText() }
+                } else {
+                    "상세 내용 없음"
+                }
+
                 loadingHandler.removeCallbacks(loadingRunnable)
                 Handler(Looper.getMainLooper()).post {
-                    resultView.text = "통신 에러 (코드: ${conn.responseCode})"
+                    resultView.gravity = Gravity.CENTER
+                    resultView.text = "통신 에러 (코드: $responseCode)\n$errorMsg"
                 }
             }
         } catch (e: Exception) {
@@ -396,7 +399,6 @@ class OverlayService : Service() {
                 resultView.text = "통신 실패 또는 강제 종료 됨.\n(${e.message})"
             }
         } finally {
-            // 💡 [토큰 방어 1] 통신이 성공/실패/강제종료 어떤 경우든 무조건 락 해제
             isFetchingAI = false
             activeConnection = null
         }
