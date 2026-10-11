@@ -170,8 +170,8 @@ class MainActivity : AppCompatActivity() {
             // 1. 카드사
             "KB국민카드" -> R.drawable.ic_card_kb
             "신한카드" -> R.drawable.ic_card_shinhan
-            "현대카드" -> R.drawable.ic_card_hyundai
-            "삼성카드" -> R.drawable.ic_card_samsung
+            //"현대카드" -> R.drawable.ic_card_hyundai
+            //"삼성카드" -> R.drawable.ic_card_samsung
             "롯데카드" -> R.drawable.ic_card_lotte
             "NH농협카드" -> R.drawable.ic_card_nh
             "우리카드" -> R.drawable.ic_card_woori
@@ -185,7 +185,7 @@ class MainActivity : AppCompatActivity() {
             // 2. 간편결제
             "카카오페이" -> R.drawable.ic_pay_kakao
             "네이버페이" -> R.drawable.ic_pay_naver
-            "토스페이" -> R.drawable.ic_pay_toss
+            //"토스페이" -> R.drawable.ic_pay_toss
             "페이코" -> R.drawable.ic_pay_payco
             "KB Pay" -> R.drawable.ic_pay_kb
             "스마일페이" -> R.drawable.ic_pay_smile
@@ -200,22 +200,22 @@ class MainActivity : AppCompatActivity() {
             "신세계 유니버스" -> R.drawable.ic_mem_ssg_universe
             "T우주패스" -> R.drawable.ic_mem_t_universe
             "컬리멤버스" -> R.drawable.ic_mem_kurly
-            "배민클럽" -> R.drawable.ic_mem_baemin
+            //"배민클럽" -> R.drawable.ic_mem_baemin
             "요기패스" -> R.drawable.ic_mem_yogiyo
             "CJ ONE" -> R.drawable.ic_point_cjone
             "L.POINT" -> R.drawable.ic_point_lpoint
             "해피포인트" -> R.drawable.ic_point_happy
-            "OK캐쉬백" -> R.drawable.ic_point_okcashbag
+            //"OK캐쉬백" -> R.drawable.ic_point_okcashbag
 
             // 5. 통신사 & 신분
-            "SKT" -> R.drawable.ic_tel_skt
-            "KT" -> R.drawable.ic_tel_kt
-            "LGU+" -> R.drawable.ic_tel_lgu
-            "알뜰폰" -> R.drawable.ic_status_altteul
-            "군인" -> R.drawable.ic_status_soldier
-            "대학생" -> R.drawable.ic_status_student
-            "임산부/육아맘" -> R.drawable.ic_status_mom
-            "시니어" -> R.drawable.ic_status_senior
+            //"SKT" -> R.drawable.ic_tel_skt
+            //"KT" -> R.drawable.ic_tel_kt
+            //"LGU+" -> R.drawable.ic_tel_lgu
+            //"알뜰폰" -> R.drawable.ic_status_altteul
+            //"군인" -> R.drawable.ic_status_soldier
+            //"대학생" -> R.drawable.ic_status_student
+            //"임산부/육아맘" -> R.drawable.ic_status_mom
+            //"시니어" -> R.drawable.ic_status_senior
             
             else -> 0 
         }
