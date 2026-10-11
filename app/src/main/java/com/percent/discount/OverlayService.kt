@@ -307,7 +307,7 @@ class OverlayService : Service() {
 
             val safeScreenText = rawScreenText.replace("\\", "\\\\").replace("\"", "\\\"")
 
-            val url = URL("[https://discount-scouter.vercel.app/api/analyze](https://discount-scouter.vercel.app/api/analyze)")
+            val url = URL("https://discount-scouter.vercel.app/api/analyze")
             val conn = url.openConnection() as HttpURLConnection
             activeConnection = conn
             
