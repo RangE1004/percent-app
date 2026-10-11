@@ -18,6 +18,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -30,6 +31,10 @@ class OverlayService : Service() {
     private var floatingView: View? = null
     private var popupView: View? = null
     private var closeAreaView: TextView? = null
+    
+    // 💡 [토큰 방어 1 & 3] 연타 방지 스위치 및 통신 강제 종료를 위한 변수
+    private var isFetchingAI = false
+    private var activeConnection: HttpURLConnection? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -83,6 +88,7 @@ class OverlayService : Service() {
             visibility = View.GONE
             alpha = 0.5f
         }
+        
         val closeParams = WindowManager.LayoutParams(
             180, 180, layoutType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
@@ -164,16 +170,20 @@ class OverlayService : Service() {
             return
         }
 
-        val pref = getSharedPreferences("PercentProfile", Context.MODE_PRIVATE)
-        val cardKeys = arrayOf("none", "kb", "shinhan", "hyundai", "samsung", "lotte", "nh")
-        val memKeys = arrayOf("none", "wow", "naver", "universe", "space")
-        val telKeys = arrayOf("none", "skt", "kt", "lgu")
-        val statKeys = arrayOf("none", "military", "student", "public", "mom")
+        // 💡 [토큰 방어 1] 광클(연타) 방지 로직: 통신 중이면 튕겨냄
+        if (isFetchingAI) {
+            Toast.makeText(this, "AI가 열심히 혜택을 계산 중이에요. 잠시만요!", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        val userCard = cardKeys.getOrElse(pref.getInt("card_idx", 0)) { "none" }
-        val userMem = memKeys.getOrElse(pref.getInt("mem_idx", 0)) { "none" }
-        val userTel = telKeys.getOrElse(pref.getInt("tel_idx", 0)) { "none" }
-        val userStat = statKeys.getOrElse(pref.getInt("stat_idx", 0)) { "none" }
+        val pref = getSharedPreferences("PercentProfile", Context.MODE_PRIVATE)
+        
+        // 💡 [토큰 방어 4] 캐시 키 통일을 위한 알파벳 정렬(sorted) 및 다중 데이터 조합
+        val sortedCard = pref.getStringSet("selected_cards", emptySet())?.sorted()?.joinToString(",") ?: "none"
+        val sortedPay = pref.getStringSet("selected_pays", emptySet())?.sorted()?.joinToString(",") ?: "none"
+        val sortedMem = pref.getStringSet("selected_mems", emptySet())?.sorted()?.joinToString(",") ?: "none"
+        val sortedTel = pref.getStringSet("selected_tels", emptySet())?.sorted()?.joinToString(",") ?: "none"
+        val pText = "카드($sortedCard), 페이($sortedPay), 멤버십($sortedMem), 통신사/신분($sortedTel)"
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -208,18 +218,14 @@ class OverlayService : Service() {
             setPadding(0, 0, 0, 20)
             
             setOnTouchListener(object : View.OnTouchListener {
-                private var initialX = 0
-                private var initialY = 0
-                private var initialTouchX = 0f
-                private var initialTouchY = 0f
+                private var initialX = 0; private var initialY = 0
+                private var initialTouchX = 0f; private var initialTouchY = 0f
 
                 override fun onTouch(v: View?, event: MotionEvent): Boolean {
                     when (event.action) {
                         MotionEvent.ACTION_DOWN -> {
-                            initialX = popupParams.x
-                            initialY = popupParams.y
-                            initialTouchX = event.rawX
-                            initialTouchY = event.rawY
+                            initialX = popupParams.x; initialY = popupParams.y
+                            initialTouchX = event.rawX; initialTouchY = event.rawY
                             return true
                         }
                         MotionEvent.ACTION_MOVE -> {
@@ -236,12 +242,9 @@ class OverlayService : Service() {
         container.addView(title)
 
         val scrollView = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 600
-            )
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 600)
         }
         
-        // 💡 텍스트 중앙 정렬 및 줄간격 확보
         val resultText = TextView(this).apply {
             textSize = 15f
             setTextColor(0xFF333333.toInt())
@@ -256,6 +259,10 @@ class OverlayService : Service() {
             setBackgroundColor(0xFF1B263B.toInt())
             setTextColor(Color.WHITE)
             setOnClickListener {
+                // 💡 [토큰 방어 3] 닫기 버튼 누르면 진행 중이던 통신 강제 단절 (유령 요청 차단)
+                try { activeConnection?.disconnect() } catch (e: Exception) {}
+                isFetchingAI = false 
+                
                 if (popupView != null) {
                     windowManager.removeView(popupView)
                     popupView = null
@@ -267,7 +274,6 @@ class OverlayService : Service() {
         popupView = container
         windowManager.addView(popupView, popupParams)
 
-        // 💡 2초마다 바뀌는 가독성 좋은 동적 애니메이션
         val loadingHandler = Handler(Looper.getMainLooper())
         val loadingMessages = arrayOf(
             "🔎 화면 정보를 스캔하고 있어요\n(잠시만 기다려주세요)",
@@ -279,25 +285,39 @@ class OverlayService : Service() {
             override fun run() {
                 resultText.text = loadingMessages[msgIndex % loadingMessages.size]
                 msgIndex++
-                loadingHandler.postDelayed(this, 2000) // 1초 -> 2초(2000ms)로 변경
+                loadingHandler.postDelayed(this, 2000)
             }
         }
-        loadingHandler.post(loadingRunnable) // 애니메이션 시작!
+        loadingHandler.post(loadingRunnable) 
 
-        Thread { fetchAIResult(userCard, userMem, userTel, userStat, resultText, loadingHandler, loadingRunnable) }.start()
+        // 💡 락 걸고 서버 요청 시작
+        isFetchingAI = true
+        Thread { fetchAIResult(pText, resultText, loadingHandler, loadingRunnable) }.start()
     }
 
     private fun fetchAIResult(
-        card: String, mem: String, tel: String, stat: String, resultView: TextView, 
+        pText: String, resultView: TextView, 
         loadingHandler: Handler, loadingRunnable: Runnable
     ) {
         try {
             val rawScreenText = ScreenReaderService.getHybridSnapshot()
+            
+            // 💡 [토큰 방어 2] 허공 스캔 방지 (화면에 글자가 50자 이하면 차단)
+            if (rawScreenText.trim().length < 50) {
+                loadingHandler.removeCallbacks(loadingRunnable)
+                Handler(Looper.getMainLooper()).post {
+                    resultView.gravity = Gravity.CENTER
+                    resultView.text = "현재 화면에서 결제/할인 정보를\n충분히 찾지 못했어요!\n(상품 페이지에서 다시 눌러주세요)"
+                }
+                return // 서버로 전송하지 않고 종료
+            }
+
             val safeScreenText = rawScreenText.replace("\\", "\\\\").replace("\"", "\\\"")
-            val pText = "카드($card), 멤버십($mem), 통신사($tel), 신분($stat)"
 
             val url = URL("https://discount-scouter.vercel.app/api/analyze")
             val conn = url.openConnection() as HttpURLConnection
+            activeConnection = conn // 통신 객체 연결 (강제 종료를 위함)
+            
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             conn.setRequestProperty("Accept", "application/json; charset=UTF-8")
@@ -347,10 +367,9 @@ class OverlayService : Service() {
                             sb.append("⚠️ ").append(caution)
                         }
 
-                        // 💡 통신 완료: 애니메이션 중지 후 왼쪽 정렬로 결과 표시
                         loadingHandler.removeCallbacks(loadingRunnable)
                         Handler(Looper.getMainLooper()).post {
-                            resultView.gravity = Gravity.START // 결과는 다시 왼쪽 정렬
+                            resultView.gravity = Gravity.START
                             resultView.text = sb.toString().trim()
                         }
                     } else {
@@ -366,20 +385,20 @@ class OverlayService : Service() {
                     }
                 }
             } else {
-                val errorResponse = try {
-                    BufferedReader(InputStreamReader(conn.errorStream, Charsets.UTF_8)).use { it.readText() }
-                } catch (e: Exception) { "알 수 없는 에러" }
-
                 loadingHandler.removeCallbacks(loadingRunnable)
                 Handler(Looper.getMainLooper()).post {
-                    resultView.text = "통신 에러 (코드: ${conn.responseCode})\n이유: $errorResponse"
+                    resultView.text = "통신 에러 (코드: ${conn.responseCode})"
                 }
             }
         } catch (e: Exception) {
             loadingHandler.removeCallbacks(loadingRunnable)
             Handler(Looper.getMainLooper()).post {
-                resultView.text = "통신 실패: 연결 상태를 확인해주세요!\n(${e.message})"
+                resultView.text = "통신 실패 또는 강제 종료 됨.\n(${e.message})"
             }
+        } finally {
+            // 💡 [토큰 방어 1] 통신이 성공/실패/강제종료 어떤 경우든 무조건 락 해제
+            isFetchingAI = false
+            activeConnection = null
         }
     }
 
