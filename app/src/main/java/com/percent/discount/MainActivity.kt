@@ -116,7 +116,6 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, 60)
         })
 
-        // 카테고리별 전체 리스트 데이터 
         val cardList = listOf("KB국민카드", "신한카드", "현대카드", "삼성카드", "롯데카드", "NH농협카드", "우리카드", "하나카드", "BC카드", "IBK기업은행", "카카오뱅크", "토스뱅크", "케이뱅크")
         val payList = listOf("카카오페이", "네이버페이", "토스페이", "페이코", "KB Pay", "스마일페이", "SSG페이", "SK페이", "삼성페이", "애플페이")
         val memList = listOf("쿠팡 와우", "네이버플러스", "신세계 유니버스", "T우주패스", "컬리멤버스", "배민클럽", "요기패스", "CJ ONE", "L.POINT", "해피포인트", "OK캐쉬백")
@@ -164,61 +163,58 @@ class MainActivity : AppCompatActivity() {
         return box
     }
 
-    // 💡 작성하신 전체 아이콘 리스트 매핑
+    // 💡 [에러 해결의 핵심!] 파일 이름을 텍스트로 찾아서, 없으면 조용히 무시(0 반환)
     private fun getIconForName(name: String): Int {
-        return when (name) {
-            // 1. 카드사
-            "KB국민카드" -> R.drawable.ic_card_kb
-            "신한카드" -> R.drawable.ic_card_shinhan
-            //"현대카드" -> R.drawable.ic_card_hyundai
-            //"삼성카드" -> R.drawable.ic_card_samsung
-            "롯데카드" -> R.drawable.ic_card_lotte
-            "NH농협카드" -> R.drawable.ic_card_nh
-            "우리카드" -> R.drawable.ic_card_woori
-            "하나카드" -> R.drawable.ic_card_hana
-            "BC카드" -> R.drawable.ic_card_bc
-            "IBK기업은행" -> R.drawable.ic_card_ibk
-            "카카오뱅크" -> R.drawable.ic_card_kakaobank
-            "토스뱅크" -> R.drawable.ic_card_tossbank
-            "케이뱅크" -> R.drawable.ic_card_kbank
-            
-            // 2. 간편결제
-            "카카오페이" -> R.drawable.ic_pay_kakao
-            "네이버페이" -> R.drawable.ic_pay_naver
-            //"토스페이" -> R.drawable.ic_pay_toss
-            "페이코" -> R.drawable.ic_pay_payco
-            "KB Pay" -> R.drawable.ic_pay_kb
-            "스마일페이" -> R.drawable.ic_pay_smile
-            "SSG페이" -> R.drawable.ic_pay_ssg
-            "SK페이" -> R.drawable.ic_pay_sk
-            "삼성페이" -> R.drawable.ic_pay_samsung
-            "애플페이" -> R.drawable.ic_pay_apple
-
-            // 3. 멤버십 & 4. 포인트
-            "쿠팡 와우" -> R.drawable.ic_mem_wow
-            "네이버플러스" -> R.drawable.ic_mem_naverplus
-            "신세계 유니버스" -> R.drawable.ic_mem_ssg_universe
-            "T우주패스" -> R.drawable.ic_mem_t_universe
-            "컬리멤버스" -> R.drawable.ic_mem_kurly
-            //"배민클럽" -> R.drawable.ic_mem_baemin
-            "요기패스" -> R.drawable.ic_mem_yogiyo
-            "CJ ONE" -> R.drawable.ic_point_cjone
-            "L.POINT" -> R.drawable.ic_point_lpoint
-            "해피포인트" -> R.drawable.ic_point_happy
-            //"OK캐쉬백" -> R.drawable.ic_point_okcashbag
-
-            // 5. 통신사 & 신분
-            //"SKT" -> R.drawable.ic_tel_skt
-            //"KT" -> R.drawable.ic_tel_kt
-            //"LGU+" -> R.drawable.ic_tel_lgu
-            //"알뜰폰" -> R.drawable.ic_status_altteul
-            //"군인" -> R.drawable.ic_status_soldier
-            //"대학생" -> R.drawable.ic_status_student
-            //"임산부/육아맘" -> R.drawable.ic_status_mom
-            //"시니어" -> R.drawable.ic_status_senior
-            
-            else -> 0 
+        val fileName = when (name) {
+            "KB국민카드" -> "ic_card_kb"
+            "신한카드" -> "ic_card_shinhan"
+            "현대카드" -> "ic_card_hyundai"
+            "삼성카드" -> "ic_card_samsung"
+            "롯데카드" -> "ic_card_lotte"
+            "NH농협카드" -> "ic_card_nh"
+            "우리카드" -> "ic_card_woori"
+            "하나카드" -> "ic_card_hana"
+            "BC카드" -> "ic_card_bc"
+            "IBK기업은행" -> "ic_card_ibk"
+            "카카오뱅크" -> "ic_card_kakaobank"
+            "토스뱅크" -> "ic_card_tossbank"
+            "케이뱅크" -> "ic_card_kbank"
+            "카카오페이" -> "ic_pay_kakao"
+            "네이버페이" -> "ic_pay_naver"
+            "토스페이" -> "ic_pay_toss"
+            "페이코" -> "ic_pay_payco"
+            "KB Pay" -> "ic_pay_kb"
+            "스마일페이" -> "ic_pay_smile"
+            "SSG페이" -> "ic_pay_ssg"
+            "SK페이" -> "ic_pay_sk"
+            "삼성페이" -> "ic_pay_samsung"
+            "애플페이" -> "ic_pay_apple"
+            "쿠팡 와우" -> "ic_mem_wow"
+            "네이버플러스" -> "ic_mem_naverplus"
+            "신세계 유니버스" -> "ic_mem_ssg_universe"
+            "T우주패스" -> "ic_mem_t_universe"
+            "컬리멤버스" -> "ic_mem_kurly"
+            "배민클럽" -> "ic_mem_baemin"
+            "요기패스" -> "ic_mem_yogiyo"
+            "CJ ONE" -> "ic_point_cjone"
+            "L.POINT" -> "ic_point_lpoint"
+            "해피포인트" -> "ic_point_happy"
+            "OK캐쉬백" -> "ic_point_okcashbag"
+            "SKT" -> "ic_tel_skt"
+            "KT" -> "ic_tel_kt"
+            "LGU+" -> "ic_tel_lgu"
+            "알뜰폰" -> "ic_status_altteul"
+            "군인" -> "ic_status_soldier"
+            "대학생" -> "ic_status_student"
+            "임산부/육아맘" -> "ic_status_mom"
+            "시니어" -> "ic_status_senior"
+            else -> ""
         }
+
+        if (fileName.isEmpty()) return 0
+
+        // 폴더를 뒤져보고 파일이 존재하면 ID를 반환, 없으면 0을 반환 (빨간 줄 원천 차단)
+        return resources.getIdentifier(fileName, "drawable", packageName)
     }
 
     private fun getScaledDrawable(resId: Int): Drawable? {
