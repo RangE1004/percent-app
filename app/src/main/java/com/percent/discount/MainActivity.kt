@@ -55,7 +55,6 @@ class MainActivity : AppCompatActivity() {
 
         productRecyclerView.layoutManager = LinearLayoutManager(this)
 
-        // 앱 시작 시 기본으로 보여줄 '오늘의 특가' 상품 자동 검색
         searchCoupang("오늘의 특가", productRecyclerView)
 
         if (isAccessibilityEnabled() && Settings.canDrawOverlays(this)) {
@@ -63,23 +62,10 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "퍼센트 스캐너 가동 중!", Toast.LENGTH_SHORT).show()
         }
 
-        // 💡 [추가됨] 프로필 버튼 클릭 시 Vercel 설정 웹화면을 바텀 시트로 띄움
+        // 💡 [핵심] Vercel 웹뷰를 지우고, 이전에 만든 네이티브 ProfileManager를 호출합니다.
         profileButton.setOnClickListener {
-            val bottomSheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-            val webView = android.webkit.WebView(this).apply {
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    (resources.displayMetrics.heightPixels * 0.85).toInt()
-                )
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                webViewClient = android.webkit.WebViewClient()
-                
-                // 💡 프로필 웹뷰 연결 주소
-                loadUrl("https://discount-scouter.vercel.app/")
-            }
-            bottomSheet.setContentView(webView)
-            bottomSheet.show()
+            val profileManager = ProfileManager(this)
+            profileManager.show() 
         }
 
         searchEditText.setOnEditorActionListener { v, actionId, event ->
@@ -99,7 +85,6 @@ class MainActivity : AppCompatActivity() {
     private fun searchCoupang(query: String, recyclerView: RecyclerView) {
         thread {
             try {
-                // 💡 상품 검색 API 연결 주소
                 val url = URL("https://discount-scouter.vercel.app/api/search") 
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
@@ -279,4 +264,15 @@ class ProductAdapter(private val products: List<Product>, private val onClick: (
     }
 
     override fun getItemCount() = products.size
+}
+
+// ==========================================
+// 💡 기존에 만들어둔 클래스가 없을 경우를 대비한 예비 틀
+// (본인의 프로젝트에 ProfileManager가 이미 있다면 이 부분은 지우셔도 됩니다.)
+// ==========================================
+class ProfileManager(private val context: Context) {
+    fun show() {
+        Toast.makeText(context, "네이티브 프로필 팝업이 호출되었습니다!", Toast.LENGTH_SHORT).show()
+        // TODO: 원래 만들어두셨던 네이티브 프로필 레이아웃(XML)이나 다이얼로그 코드를 여기에 연결하시면 됩니다.
+    }
 }
