@@ -68,9 +68,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // 💡 [수정됨] ProfileManager가 싱글톤(object)이므로 새로 생성하지 않고 직접 호출합니다.
         profileButton.setOnClickListener {
-            val profileManager = ProfileManager(this)
-            profileManager.show() 
+            ProfileManager.show(this@MainActivity) 
         }
 
         searchEditText.setOnEditorActionListener { v, actionId, event ->
