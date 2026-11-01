@@ -21,12 +21,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 우측 상단 프로필 버튼 (동그라미) -->
+    <!-- 우측 상단 프로필 버튼 (동그라미) - 빌드 에러 원인 수정됨 -->
     <ImageView
         android:id="@+id/profileButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
-        android:background="@drawable/ic_launcher_background" 
+        android:background="#CCCCCC" 
         app:layout_constraintBottom_toBottomOf="@+id/searchEditText"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/searchEditText" />
