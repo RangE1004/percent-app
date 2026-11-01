@@ -72,7 +72,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 💡 우측 상단 프로필 버튼 클릭 시 찾아낸 원본 네이티브 UI를 팝업으로 호출
         profileButton.setOnClickListener {
             showNativeProfileDialog()
         }
@@ -91,9 +90,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================
-    // 💡 복원 완료: 사용자 제작 오리지널 프로필 UI 팝업
-    // ==========================================
     private fun showNativeProfileDialog() {
         val bottomSheet = BottomSheetDialog(this)
         val pref = getSharedPreferences("PercentProfile", Context.MODE_PRIVATE)
@@ -247,7 +243,7 @@ class MainActivity : AppCompatActivity() {
             "컬리멤버스" -> R.drawable.ic_mem_kurly
             "요기패스" -> R.drawable.ic_mem_yogiyo
             "CJ ONE" -> R.drawable.ic_point_cjone
-            "L.POINT" -> R.drawable.ic_point_lpoint
+            //"L.POINT" -> R.drawable.ic_point_lpoint  // 리소스 부재로 주석 처리
             "해피포인트" -> R.drawable.ic_point_happy
             else -> 0 
         }
