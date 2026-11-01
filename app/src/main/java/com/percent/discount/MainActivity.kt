@@ -176,6 +176,16 @@ class MainActivity : AppCompatActivity() {
         scrollContent.addView(createSectionBox("👑 구독 멤버십 & 포인트", memList, selectedMems))
         scrollContent.addView(createSectionBox("📱 통신사 & 신분", telList, selectedTels))
 
+        // 💡 1. 프로필 화면 맨 밑에 공정위 대가성 문구 추가 (심사용 안전장치)
+        scrollContent.addView(TextView(this).apply {
+            text = "이 포스팅은 쿠팡 파트너스 활동의 일환으로,\n이에 따른 일정액의 수수료를 제공받습니다."
+            textSize = 12f
+            setTextColor(0xFFAAAAAA.toInt())
+            gravity = Gravity.CENTER
+            setLineSpacing(0f, 1.2f)
+            setPadding(0, 30, 0, 60)
+        })
+
         bottomSheet.setContentView(root)
         bottomSheet.show()
     }
@@ -243,7 +253,6 @@ class MainActivity : AppCompatActivity() {
             "컬리멤버스" -> R.drawable.ic_mem_kurly
             "요기패스" -> R.drawable.ic_mem_yogiyo
             "CJ ONE" -> R.drawable.ic_point_cjone
-            //"L.POINT" -> R.drawable.ic_point_lpoint  // 리소스 부재로 주석 처리
             "해피포인트" -> R.drawable.ic_point_happy
             else -> 0 
         }
@@ -495,34 +504,59 @@ class MainActivity : AppCompatActivity() {
 
 data class Product(val title: String, val price: Int, val imageUrl: String, val productUrl: String, val isRocket: Boolean)
 
-class ProductAdapter(private val products: List<Product>, private val onClick: (String) -> Unit) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
+// 💡 2. 상품 검색 리스트 맨 마지막에도 공정위 문구가 나오도록 푸터(Footer) 기능 추가
+class ProductAdapter(private val products: List<Product>, private val onClick: (String) -> Unit) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    private val VIEW_TYPE_ITEM = 0
+    private val VIEW_TYPE_FOOTER = 1
+
+    class ItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val image: ImageView = view.findViewById(R.id.productImage)
         val title: TextView = view.findViewById(R.id.productTitle)
         val price: TextView = view.findViewById(R.id.productPrice)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_product, parent, false)
-        return ViewHolder(view)
+    class FooterViewHolder(view: View) : RecyclerView.ViewHolder(view)
+
+    override fun getItemViewType(position: Int): Int {
+        return if (position == products.size) VIEW_TYPE_FOOTER else VIEW_TYPE_ITEM
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val p = products[position]
-        holder.title.text = if (p.isRocket) "🚀 " + p.title else p.title
-        holder.price.text = "%,d원".format(p.price)
-        holder.itemView.setOnClickListener { onClick(p.productUrl) }
-
-        holder.image.setImageResource(android.R.color.transparent)
-        thread {
-            try {
-                val url = URL(p.imageUrl)
-                val bmp = android.graphics.BitmapFactory.decodeStream(url.openConnection().inputStream)
-                Handler(Looper.getMainLooper()).post { holder.image.setImageBitmap(bmp) }
-            } catch (e: Exception) {}
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        if (viewType == VIEW_TYPE_ITEM) {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_product, parent, false)
+            return ItemViewHolder(view)
+        } else {
+            val footerView = TextView(parent.context).apply {
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                text = "이 포스팅은 쿠팡 파트너스 활동의 일환으로,\n이에 따른 일정액의 수수료를 제공받습니다."
+                textSize = 11f
+                setTextColor(Color.GRAY)
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.2f)
+                setPadding(0, 40, 0, 80)
+            }
+            return FooterViewHolder(footerView)
         }
     }
 
-    override fun getItemCount() = products.size
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (holder is ItemViewHolder) {
+            val p = products[position]
+            holder.title.text = if (p.isRocket) "🚀 " + p.title else p.title
+            holder.price.text = "%,d원".format(p.price)
+            holder.itemView.setOnClickListener { onClick(p.productUrl) }
+
+            holder.image.setImageResource(android.R.color.transparent)
+            thread {
+                try {
+                    val url = URL(p.imageUrl)
+                    val bmp = android.graphics.BitmapFactory.decodeStream(url.openConnection().inputStream)
+                    Handler(Looper.getMainLooper()).post { holder.image.setImageBitmap(bmp) }
+                } catch (e: Exception) {}
+            }
+        }
+    }
+
+    override fun getItemCount() = if (products.isEmpty()) 0 else products.size + 1
 }
