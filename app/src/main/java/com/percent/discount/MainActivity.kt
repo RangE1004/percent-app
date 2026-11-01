@@ -11,10 +11,15 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
@@ -31,42 +36,42 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_splash) // 스플래시 유지
+        setContentView(R.layout.activity_splash)
 
         Handler(Looper.getMainLooper()).postDelayed({
             showMainScreen() 
             isSplashFinished = true
-            
             checkPermissions()
             checkForUpdate()   
         }, 1500)
     }
 
-    // 💡 [변경됨] 복잡한 프로그램 UI 대신, 새로 만든 activity_main.xml을 불러옵니다.
     private fun showMainScreen() {
         setContentView(R.layout.activity_main)
 
         val searchEditText = findViewById<EditText>(R.id.searchEditText)
         val profileButton = findViewById<ImageView>(R.id.profileButton)
+        val productRecyclerView = findViewById<RecyclerView>(R.id.productRecyclerView)
 
-        // 1. 권한이 모두 켜져 있다면, 앱 메인 화면 진입 시 오버레이 스캐너 자동 가동
+        // 리스트뷰 매니저 설정
+        productRecyclerView.layoutManager = LinearLayoutManager(this)
+
         if (isAccessibilityEnabled() && Settings.canDrawOverlays(this)) {
             startService(Intent(this@MainActivity, OverlayService::class.java))
-            Toast.makeText(this, "퍼센트 스캐너 가동 중! 쇼핑몰로 이동해보세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "퍼센트 스캐너 가동 중!", Toast.LENGTH_SHORT).show()
         }
 
-        // 2. 우측 상단 프로필(동그라미) 터치 이벤트
         profileButton.setOnClickListener {
-            // TODO: 기존의 예쁜 카드/페이 선택 화면을 띄우는 로직 연결 예정
             Toast.makeText(this, "프로필 수정 화면 준비 중", Toast.LENGTH_SHORT).show()
         }
 
-        // 3. 중앙 검색창 검색(엔터) 이벤트
+        // 검색창 엔터 터치 시 이벤트
         searchEditText.setOnEditorActionListener { v, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val query = searchEditText.text.toString()
                 if (query.isNotEmpty()) {
-                    Toast.makeText(this, "'$query' 검색 및 쿠팡 연동 준비 중", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "쿠팡 최저가 검색 중...", Toast.LENGTH_SHORT).show()
+                    searchCoupang(query, productRecyclerView)
                 }
                 true
             } else {
@@ -75,8 +80,60 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // 💡 [핵심] Vercel 서버 찌르고 쿠팡 데이터 가져오기
+    private fun searchCoupang(query: String, recyclerView: RecyclerView) {
+        thread {
+            try {
+                // 🚨 주의: 아래 주소를 본인의 실제 Vercel API 주소로 변경하세요!
+                val url = URL("https://본인의-버셀-주소/api/search") 
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+
+                val jsonInputString = "{\"query\": \"$query\"}"
+                conn.outputStream.use { os ->
+                    val input = jsonInputString.toByteArray(Charsets.UTF_8)
+                    os.write(input, 0, input.size)
+                }
+
+                if (conn.responseCode == 200) {
+                    val response = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).readText()
+                    val json = JSONObject(response)
+                    val results = json.getJSONArray("results")
+                    val productList = mutableListOf<Product>()
+
+                    for (i in 0 until results.length()) {
+                        val item = results.getJSONObject(i)
+                        productList.add(Product(
+                            item.getString("title"),
+                            item.getInt("price"),
+                            item.getString("imageUrl"),
+                            item.getString("productUrl"),
+                            item.optBoolean("isRocket", false)
+                        ))
+                    }
+
+                    // 데이터를 어댑터에 넣고 화면 업데이트
+                    runOnUiThread {
+                        recyclerView.adapter = ProductAdapter(productList) { productUrl ->
+                            // 상품 클릭 시 쿠팡 파트너스 링크로 이동
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(productUrl))
+                            startActivity(intent)
+                        }
+                    }
+                } else {
+                    runOnUiThread { Toast.makeText(this@MainActivity, "검색 서버 오류", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread { Toast.makeText(this@MainActivity, "네트워크 에러", Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
+
     // ==========================================
-    // 💡 아래부터는 기존 사용자님의 권한/업데이트 로직 (100% 원본 유지)
+    // 기존 권한 및 업데이트 로직 (원본 유지)
     // ==========================================
     override fun onResume() {
         super.onResume()
@@ -178,4 +235,42 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+}
+
+// ==========================================
+// 💡 리사이클러뷰(리스트) 어댑터 및 데이터 클래스
+// ==========================================
+data class Product(val title: String, val price: Int, val imageUrl: String, val productUrl: String, val isRocket: Boolean)
+
+class ProductAdapter(private val products: List<Product>, private val onClick: (String) -> Unit) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
+    
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val image: ImageView = view.findViewById(R.id.productImage)
+        val title: TextView = view.findViewById(R.id.productTitle)
+        val price: TextView = view.findViewById(R.id.productPrice)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_product, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val p = products[position]
+        holder.title.text = if (p.isRocket) "🚀 " + p.title else p.title
+        holder.price.text = "%,d원".format(p.price)
+        holder.itemView.setOnClickListener { onClick(p.productUrl) }
+
+        // 간단한 비동기 이미지 로더
+        holder.image.setImageResource(android.R.color.transparent)
+        thread {
+            try {
+                val url = URL(p.imageUrl)
+                val bmp = android.graphics.BitmapFactory.decodeStream(url.openConnection().inputStream)
+                Handler(Looper.getMainLooper()).post { holder.image.setImageBitmap(bmp) }
+            } catch (e: Exception) {}
+        }
+    }
+
+    override fun getItemCount() = products.size
 }
