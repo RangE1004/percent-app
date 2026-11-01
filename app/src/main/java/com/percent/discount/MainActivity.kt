@@ -63,8 +63,23 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "퍼센트 스캐너 가동 중!", Toast.LENGTH_SHORT).show()
         }
 
+        // 💡 [추가됨] 프로필 버튼 클릭 시 Vercel 설정 웹화면을 바텀 시트로 띄움
         profileButton.setOnClickListener {
-            Toast.makeText(this, "프로필 수정 화면 준비 중", Toast.LENGTH_SHORT).show()
+            val bottomSheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+            val webView = android.webkit.WebView(this).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    (resources.displayMetrics.heightPixels * 0.85).toInt()
+                )
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                webViewClient = android.webkit.WebViewClient()
+                
+                // 💡 프로필 웹뷰 연결 주소
+                loadUrl("https://discount-scouter.vercel.app/")
+            }
+            bottomSheet.setContentView(webView)
+            bottomSheet.show()
         }
 
         searchEditText.setOnEditorActionListener { v, actionId, event ->
@@ -84,7 +99,7 @@ class MainActivity : AppCompatActivity() {
     private fun searchCoupang(query: String, recyclerView: RecyclerView) {
         thread {
             try {
-                // 💡 사용자님의 Vercel API 주소가 완벽하게 적용되었습니다.
+                // 💡 상품 검색 API 연결 주소
                 val url = URL("https://discount-scouter.vercel.app/api/search") 
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
