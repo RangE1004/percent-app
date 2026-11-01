@@ -56,6 +56,9 @@ class MainActivity : AppCompatActivity() {
         // 리스트뷰 매니저 설정
         productRecyclerView.layoutManager = LinearLayoutManager(this)
 
+        // 🌟 앱 시작 시 기본으로 보여줄 '오늘의 특가' 상품 자동 검색
+        searchCoupang("오늘의 특가", productRecyclerView)
+
         if (isAccessibilityEnabled() && Settings.canDrawOverlays(this)) {
             startService(Intent(this@MainActivity, OverlayService::class.java))
             Toast.makeText(this, "퍼센트 스캐너 가동 중!", Toast.LENGTH_SHORT).show()
@@ -84,8 +87,8 @@ class MainActivity : AppCompatActivity() {
     private fun searchCoupang(query: String, recyclerView: RecyclerView) {
         thread {
             try {
-                // 🚨 주의: 아래 주소를 본인의 실제 Vercel API 주소로 변경하세요!
-                val url = URL("https://본인의-버셀-주소/api/search") 
+                // 🚨🚨🚨 반드시 본인의 실제 Vercel API 주소로 변경하세요! (예: https://percent-app.vercel.app/api/search)
+                val url = URL("https://discount-scouter.vercel.app/") 
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
