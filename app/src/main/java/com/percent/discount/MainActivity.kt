@@ -53,10 +53,9 @@ class MainActivity : AppCompatActivity() {
         val profileButton = findViewById<ImageView>(R.id.profileButton)
         val productRecyclerView = findViewById<RecyclerView>(R.id.productRecyclerView)
 
-        // 리스트뷰 매니저 설정
         productRecyclerView.layoutManager = LinearLayoutManager(this)
 
-        // 🌟 앱 시작 시 기본으로 보여줄 '오늘의 특가' 상품 자동 검색
+        // 앱 시작 시 기본으로 보여줄 '오늘의 특가' 상품 자동 검색
         searchCoupang("오늘의 특가", productRecyclerView)
 
         if (isAccessibilityEnabled() && Settings.canDrawOverlays(this)) {
@@ -68,7 +67,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "프로필 수정 화면 준비 중", Toast.LENGTH_SHORT).show()
         }
 
-        // 검색창 엔터 터치 시 이벤트
         searchEditText.setOnEditorActionListener { v, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val query = searchEditText.text.toString()
@@ -83,12 +81,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 💡 [핵심] Vercel 서버 찌르고 쿠팡 데이터 가져오기
     private fun searchCoupang(query: String, recyclerView: RecyclerView) {
         thread {
             try {
-                // 🚨🚨🚨 반드시 본인의 실제 Vercel API 주소로 변경하세요! (예: https://percent-app.vercel.app/api/search)
-                val url = URL("https://discount-scouter.vercel.app/") 
+                // 💡 사용자님의 Vercel API 주소가 완벽하게 적용되었습니다.
+                val url = URL("https://discount-scouter.vercel.app/api/search") 
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
@@ -117,10 +114,8 @@ class MainActivity : AppCompatActivity() {
                         ))
                     }
 
-                    // 데이터를 어댑터에 넣고 화면 업데이트
                     runOnUiThread {
                         recyclerView.adapter = ProductAdapter(productList) { productUrl ->
-                            // 상품 클릭 시 쿠팡 파트너스 링크로 이동
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(productUrl))
                             startActivity(intent)
                         }
@@ -135,9 +130,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================
-    // 기존 권한 및 업데이트 로직 (원본 유지)
-    // ==========================================
     override fun onResume() {
         super.onResume()
         if (isSplashFinished) checkPermissions()
@@ -240,9 +232,6 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-// ==========================================
-// 💡 리사이클러뷰(리스트) 어댑터 및 데이터 클래스
-// ==========================================
 data class Product(val title: String, val price: Int, val imageUrl: String, val productUrl: String, val isRocket: Boolean)
 
 class ProductAdapter(private val products: List<Product>, private val onClick: (String) -> Unit) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
@@ -264,7 +253,6 @@ class ProductAdapter(private val products: List<Product>, private val onClick: (
         holder.price.text = "%,d원".format(p.price)
         holder.itemView.setOnClickListener { onClick(p.productUrl) }
 
-        // 간단한 비동기 이미지 로더
         holder.image.setImageResource(android.R.color.transparent)
         thread {
             try {
