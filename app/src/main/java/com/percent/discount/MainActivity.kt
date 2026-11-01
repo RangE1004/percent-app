@@ -68,9 +68,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 💡 [수정됨] ProfileManager가 싱글톤(object)이므로 새로 생성하지 않고 직접 호출합니다.
+        // 💡 [수정됨] 에러가 나는 외부 ProfileManager를 버리고, 여기서 직접 팝업을 띄웁니다.
         profileButton.setOnClickListener {
-            ProfileManager.show(this@MainActivity) 
+            showProfileDialog()
         }
 
         searchEditText.setOnEditorActionListener { v, actionId, event ->
@@ -85,6 +85,33 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         }
+    }
+
+    // 💡 [추가됨] 화면 중앙에 뜨는 네이티브 프로필 다이얼로그
+    private fun showProfileDialog() {
+        val dialogView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(70, 70, 70, 70)
+            addView(TextView(this@MainActivity).apply { 
+                text = "💳 내 맞춤 환경 설정"
+                textSize = 22f
+                paint.isFakeBoldText = true
+                setTextColor(Color.BLACK)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 40)
+            })
+            addView(TextView(this@MainActivity).apply { 
+                text = "현재 프로필 저장 기능이 준비 중입니다.\n곧 업데이트될 기능입니다!"
+                textSize = 15f
+                setLineSpacing(0f, 1.3f)
+                setTextColor(Color.DKGRAY)
+                gravity = Gravity.CENTER
+            })
+        }
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("확인", null)
+            .show()
     }
 
     private fun searchCoupang(query: String, recyclerView: RecyclerView) {
