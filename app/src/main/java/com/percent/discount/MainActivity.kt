@@ -52,17 +52,23 @@ class MainActivity : AppCompatActivity() {
         val searchEditText = findViewById<EditText>(R.id.searchEditText)
         val profileButton = findViewById<ImageView>(R.id.profileButton)
         val productRecyclerView = findViewById<RecyclerView>(R.id.productRecyclerView)
+        val startAssistantButton = findViewById<Button>(R.id.startAssistantButton) // 💡 비서 띄우기 버튼
 
         productRecyclerView.layoutManager = LinearLayoutManager(this)
 
         searchCoupang("오늘의 특가", productRecyclerView)
 
-        if (isAccessibilityEnabled() && Settings.canDrawOverlays(this)) {
-            startService(Intent(this@MainActivity, OverlayService::class.java))
-            Toast.makeText(this, "퍼센트 스캐너 가동 중!", Toast.LENGTH_SHORT).show()
+        // 💡 [수정됨] 자동 실행을 끄고, 버튼을 누르면 스캐너(비서)가 뜨도록 변경
+        startAssistantButton.setOnClickListener {
+            if (isAccessibilityEnabled() && Settings.canDrawOverlays(this)) {
+                startService(Intent(this@MainActivity, OverlayService::class.java))
+                Toast.makeText(this, "쇼핑 비서 가동 중! 쇼핑 앱을 켜보세요.", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "권한 설정이 필요합니다.", Toast.LENGTH_SHORT).show()
+                checkPermissions() // 권한이 없으면 다시 설정 창 띄움
+            }
         }
 
-        // 💡 [핵심] Vercel 웹뷰를 지우고, 이전에 만든 네이티브 ProfileManager를 호출합니다.
         profileButton.setOnClickListener {
             val profileManager = ProfileManager(this)
             profileManager.show() 
@@ -266,13 +272,8 @@ class ProductAdapter(private val products: List<Product>, private val onClick: (
     override fun getItemCount() = products.size
 }
 
-// ==========================================
-// 💡 기존에 만들어둔 클래스가 없을 경우를 대비한 예비 틀
-// (본인의 프로젝트에 ProfileManager가 이미 있다면 이 부분은 지우셔도 됩니다.)
-// ==========================================
 class ProfileManager(private val context: Context) {
     fun show() {
         Toast.makeText(context, "네이티브 프로필 팝업이 호출되었습니다!", Toast.LENGTH_SHORT).show()
-        // TODO: 원래 만들어두셨던 네이티브 프로필 레이아웃(XML)이나 다이얼로그 코드를 여기에 연결하시면 됩니다.
     }
 }
